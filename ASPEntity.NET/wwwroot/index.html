@@ -1,0 +1,171 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>METANIT.COM</title>
+    <style>
+        h3{
+            padding:0;
+        }
+        #recordsContainer{
+            border: 2px solid black;
+            width:500px;
+            display: flex;
+            justify-content:space-between;
+            flex-direction:column;
+        }
+        #record{
+            padding:5px;
+            border-bottom: 0.5px solid black;
+        }
+        button {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Список записей</h2>
+    <div id="recordsContainer">
+    </div>
+    <div>
+        <input type="hidden" id="recordId" />
+        <p>
+            Название:<br />
+            <input id="recordName" /> <br />
+            Текст:<br />
+            <input id="recordText" />
+        </p>
+        <p>
+            <button id="saveButton">Сохранить</button>
+            <button id="resetButton">Сбросить</button>
+        </p>
+    </div>
+    <script>
+        async function getRecords() {
+            const response = await fetch("/api/records", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const record = await response.json();
+                const container = document.getElementById("recordsContainer");
+                record.forEach(rec => container.append(showRecord(rec)));
+            }
+        }
+        async function getRecord(id) {
+            const response = await fetch(`/api/records/${id}`, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const record = await response.json();
+                document.getElementById("recordId").value = record.id;
+                document.getElementById("recordName").value = record.name;
+                document.getElementById("recordText").value = record.text;
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+        async function createRecord(recordName, recordText) {
+            const response = await fetch(`/api/records`, {
+                method: "POST",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: recordName,
+                    text: recordText
+                })
+            });
+            if (response.ok === true) {
+                const record = await response.json();
+                document.querySelector("#recordsContainer").append(showRecord(record));
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+        async function editRecord(recordId, recordName, recordText) {
+            const response = await fetch(`/api/records`, {
+                method: "PUT",
+                headers: { "Accept": "application/json", "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: recordId,
+                    name: recordName,
+                    text: recordText
+                })
+            });
+            if (response.ok === true) {
+                const record = await response.json();
+                document.querySelector(`div[data-rowid='${record.id}']`).replaceWith(showRecord(record));
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+        async function deleteRecord(id) {
+            const response = await fetch(`/api/records/${id}`, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const record = await response.json();
+                document.querySelector(`div[data-rowid='${record.id}']`).remove();
+            }
+            else {
+                const error = await response.json();
+                console.log(error.message);
+            }
+        }
+        function reset() {
+            document.getElementById("recordId").value = "";
+            document.getElementById("recordName").value = "";
+            document.getElementById("recordText").value = "";
+        }
+        async function saveButtonClick() {
+            const id = document.getElementById("recordId").value;
+            const name = document.getElementById("recordName").value;
+            const text = document.getElementById("recordText").value;
+            console.log(id);
+            if (id === "")
+                await createRecord(name, text);
+            else
+                await editRecord(id, name, text);
+            reset();
+        }
+        function showRecord(rec) {
+            let container = document.getElementById("recordsContainer");
+
+            const record = document.createElement("div");
+            record.setAttribute("id", "record");
+            record.setAttribute("data-rowid", rec.id);
+
+            const recordName = document.createElement("h3");
+            recordName.append(rec.name);
+            record.append(recordName);
+
+            const recordText = document.createElement("p");
+            recordText.append(rec.text);
+            record.append(recordText);
+
+            const editButton = document.createElement("button");
+            editButton.append("Изменить");
+            editButton.addEventListener("click", async () => getRecord(rec.id));
+            record.append(editButton);
+
+            const removeButton = document.createElement("button");
+            removeButton.append("Удалить");
+            removeButton.addEventListener("click", async () => deleteRecord(rec.id));
+            record.append(removeButton);
+
+            return record;
+        }
+
+        document.getElementById("saveButton").addEventListener("click", async() => await saveButtonClick());
+        document.getElementById("resetButton").addEventListener("click", () => reset());
+        getRecords();
+    </script>
+</body>
+</html>
