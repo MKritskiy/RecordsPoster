@@ -7,6 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="wwwroot\login.html" />
+    <Content Remove="wwwroot\registration.html" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\registration.html" />
+    <None Include="wwwroot\login.html" />
     <None Include="wwwroot\index.html" />
   </ItemGroup>
 

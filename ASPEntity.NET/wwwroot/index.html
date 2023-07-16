@@ -18,12 +18,21 @@
             padding:5px;
             border-bottom: 0.5px solid black;
         }
-        button {
-            margin: 5px;
+        #accauntData{
+            display:flex;
+            justify-content: space-between;
+            width:500px;
         }
+
     </style>
 </head>
 <body>
+    <div id="accauntData">
+        <div class ="userName" id="userName"></div>
+        <button id="loginButton" onclick="location.href='/login'">Войти</button>
+        <button id="regButton" onclick="location.href='/registration'">Регистрация</button>
+        <button id="logoutButton" style="display:none" onclick="location.href='/logout'">Выйти</button>
+    </div>
     <h2>Список записей</h2>
     <div id="recordsContainer">
     </div>
@@ -64,6 +73,8 @@
                 document.getElementById("recordText").value = record.text;
             }
             else {
+                if (await response.status == 401)
+                    location.href = "/login.html";
                 const error = await response.json();
                 console.log(error.message);
             }
@@ -82,11 +93,15 @@
                 document.querySelector("#recordsContainer").append(showRecord(record));
             }
             else {
+                if (await response.status == 401)
+                    location.href = "/login.html";
                 const error = await response.json();
                 console.log(error.message);
+                alert(error.message);
             }
         }
         async function editRecord(recordId, recordName, recordText) {
+
             const response = await fetch(`/api/records`, {
                 method: "PUT",
                 headers: { "Accept": "application/json", "Content-Type": "application/json" },
@@ -103,9 +118,32 @@
             else {
                 const error = await response.json();
                 console.log(error.message);
+                alert(error.message);
+            }
+        }
+        async function checkAuth() {
+            const response = await fetch("/api/auth", {
+                method: "GET", 
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                var res = await response.json();
+                if (res.data)
+                    return true;
+                else
+                    return false;
+            }
+            else {
+                const error = await response.json();
+                alert(error.message);
+                return false;
             }
         }
         async function deleteRecord(id) {
+            var check = await checkAuth();
+            if (!check) {
+                return;
+            }
             const response = await fetch(`/api/records/${id}`, {
                 method: "DELETE",
                 headers: { "Accept": "application/json" }
@@ -117,6 +155,7 @@
             else {
                 const error = await response.json();
                 console.log(error.message);
+                alert(error.message);
             }
         }
         function reset() {
@@ -125,6 +164,11 @@
             document.getElementById("recordText").value = "";
         }
         async function saveButtonClick() {
+            var check = await checkAuth();
+            if (!check) {
+                location.href = "/login";
+                return;
+            }
             const id = document.getElementById("recordId").value;
             const name = document.getElementById("recordName").value;
             const text = document.getElementById("recordText").value;
@@ -142,30 +186,86 @@
             record.setAttribute("id", "record");
             record.setAttribute("data-rowid", rec.id);
 
+            const recordUserName = document.createElement("h3");
+            recordUserName.append("Имя автора: " + rec.user.nickname);
+            record.append(recordUserName);
+
             const recordName = document.createElement("h3");
-            recordName.append(rec.name);
+            recordName.append("Заголовок: " + rec.name);
             record.append(recordName);
 
             const recordText = document.createElement("p");
             recordText.append(rec.text);
             record.append(recordText);
 
-            const editButton = document.createElement("button");
-            editButton.append("Изменить");
-            editButton.addEventListener("click", async () => getRecord(rec.id));
-            record.append(editButton);
-
-            const removeButton = document.createElement("button");
-            removeButton.append("Удалить");
-            removeButton.addEventListener("click", async () => deleteRecord(rec.id));
-            record.append(removeButton);
+            showEditDelButtons(rec, record);
 
             return record;
+        }
+        async function showEditDelButtons(rec, record) {
+            const response = await fetch(`/api/records/check/${rec.id}`, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                const res = await response.json();
+                if (res.isChecked) {
+                    const editButton = document.createElement("button");
+                    editButton.append("Изменить");
+                    editButton.addEventListener("click", async () => getRecord(rec.id));
+                    record.append(editButton);
+
+                    const removeButton = document.createElement("button");
+                    removeButton.append("Удалить");
+                    removeButton.addEventListener("click", async () => deleteRecord(rec.id));
+                    record.append(removeButton);
+                }
+            }
+        }
+
+        async function getUser(){
+            const response = await fetch("/api/user/", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+            if (response.ok === true) {
+                var res = await response.json();
+                var user = res.user;
+                return user
+            } else {
+                const error = await response.json();
+                console.log(error.message);
+                return null;
+            }
+        }
+
+        async function showUser() {
+            var logoutButton = document.getElementById("logoutButton");
+            var loginButton = document.getElementById("loginButton");
+            var regButton = document.getElementById("regButton");
+            var userName = document.getElementById("userName");
+            var isAuth = await checkAuth();
+            if (!isAuth) {
+                logoutButton.style.display = "none";
+                userName.style.display = "none";
+                loginButton.style.display = "block";
+                regButton.style.display = "block";
+                return;
+            }
+            var user = await getUser();
+            if (user) {
+                userName.innerText = user.nickname;
+                loginButton.style.display = "none";
+                regButton.style.display = "none";
+                logoutButton.style.display = "block";
+                userName.style.display = "block";
+            }
         }
 
         document.getElementById("saveButton").addEventListener("click", async() => await saveButtonClick());
         document.getElementById("resetButton").addEventListener("click", () => reset());
         getRecords();
+        showUser();
     </script>
 </body>
 </html>
